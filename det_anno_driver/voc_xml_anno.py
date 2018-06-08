@@ -34,6 +34,9 @@ class VocXmlDetectAnnotation(DetectionAnnotation):
 
     print self.classnames
 
+  def dump(self):
+    raise NotImplementedError()
+
 
 def test_voc_init():
   v = VocXmlDetectAnnotation()
