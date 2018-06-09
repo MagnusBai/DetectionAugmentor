@@ -4,8 +4,9 @@ import xml.etree.ElementTree as ET
 
 
 class VocXmlDetectAnnotation(DetectionAnnotation):
-  def __init__(self):
+  def __init__(self, xml_path, im_folder):
     super(VocXmlDetectAnnotation, self).__init__()
+    self.load(xml_path, im_folder)
 
   def loads(self):
     raise NotImplementedError()
@@ -30,7 +31,7 @@ class VocXmlDetectAnnotation(DetectionAnnotation):
         y1 = int(round(float(xmlbox.find('ymin').text)))
         y2 = int(round(float(xmlbox.find('ymax').text)))
         self.boundingboxes = np.vstack((self.boundingboxes, np.array([x1, y1, x2, y2], dtype=np.int32)))
-        self.scores = np.vstack(self.scores, np.array([1.], np.float32))
+        self.scores = np.vstack((self.scores, np.array([1.], np.float32)))
 
     print self.classnames
 
@@ -46,6 +47,12 @@ def test_voc_load():
   v = VocXmlDetectAnnotation()
   v.load('data/voc-xml/000004.xml', 'data/voc-xml/000004.jpg')
 
+def test_load_objs():
+  v = VocXmlDetectAnnotation('data/voc-xml/000004.xml', 'data/voc-xml/000004.jpg')
+  # print v.im_path
+  v.hasUnseenBox()
+
 if __name__=='__main__':
   # test_voc_init()
-  test_voc_load()
+  # test_voc_load()
+  test_load_objs()
