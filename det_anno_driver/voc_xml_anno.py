@@ -1,6 +1,7 @@
 import numpy as np
 from det_anno_base import DetectionAnnotation
 import xml.etree.ElementTree as ET
+import os
 
 
 class VocXmlDetectAnnotation(DetectionAnnotation):
@@ -15,8 +16,8 @@ class VocXmlDetectAnnotation(DetectionAnnotation):
     with open(xml_path) as in_file:
       tree=ET.parse(in_file)
       root = tree.getroot()
-      im_path = str(root.find('filename').text)
-      self.im_path = im_path
+      im_name = str(root.find('filename').text)   # just support string name
+      self.im_path = os.path.join(im_folder, im_name)
       imsize = root.find('size')
       im_w = int(imsize.find('width').text)
       im_h = int(imsize.find('height').text)
@@ -48,9 +49,13 @@ def test_voc_load():
   v.load('data/voc-xml/000004.xml', 'data/voc-xml/000004.jpg')
 
 def test_load_objs():
-  v = VocXmlDetectAnnotation('data/voc-xml/000004.xml', 'data/voc-xml/000004.jpg')
+  v = VocXmlDetectAnnotation('data/voc-xml/000004.xml', 'data/voc-xml/')
   # print v.im_path
-  v.hasUnseenBox()
+  border_flags, unseen_flags = v.findBorderAndUnseenBox()
+  print border_flags, unseen_flags
+
+def test_perspective_transform():
+  v = VocXmlDetectAnnotation('data/voc-xml/000004.xml', 'data/voc-xml/')
 
 if __name__=='__main__':
   # test_voc_init()

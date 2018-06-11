@@ -13,17 +13,49 @@ class DetectionAnnotation(object):
   def isAccessible(self): 
     return os.path.isfile(self.im_path) 
 
-  def hasUnseenBox(self):
+  def findBorderAndUnseenBox(self):
+
+    STRICT_BORDER_BOX_IDENTIFICATION=False
+    def isStrictBorderBox(obj_box, im_box):
+      xobj1, yobj1, xobj2, yobj2 = obj_box[0, :]
+      xim1, yim1, xim2, yim2 = im_box[0, :]
+      min_margin = 5
+      if abs(xim1-xobj1)<min_margin: return True
+      if abs(xim2-xobj2)<min_margin: return True
+      if abs(yim1-yobj1)<min_margin: return True
+      if abs(yim2-yobj2)<min_margin: return True
+      return False
+
+    print 'im_path: ', self.im_path
     assert self.isAccessible()
-    im_rows, im_cols, _ = cv2.imread(self.im_path)
+    border_box_flags = np.array([False for i in range(self.boundingboxes.shape[0])])
+    unseen_box_flags = np.array([False for i in range(self.boundingboxes.shape[0])])
+
+    im_rows, im_cols, _ = cv2.imread(self.im_path).shape
     im_box = np.array([[0, 0, im_cols, im_rows]], np.float32)
-    for i in range(boundingboxes.shape[0]):
-      obj_box = im_box[i, :]
-      print obj_box
+    for i in range(self.boundingboxes.shape[0]):
+      obj_box = self.boundingboxes[i, :]
+      obj_box = np.expand_dims(obj_box, axis=0)
+      obj_box_area = self.getBoxArea(obj_box)
+      print obj_box_area, obj_box
+      obj_box_in_view_area = self.get2BoxIntersectionArea(obj_box, im_box)
+      if obj_box_in_view_area==0:
+        unseen_box_flags[i] = True
+      elif obj_box_in_view_area<obj_box_area:
+        border_box_flags[i] = True
+      elif STRICT_BORDER_BOX_IDENTIFICATION and isStrictBorderBox(obj_box, im_box):
+        border_box_flags[i] = True
+    return border_box_flags, unseen_box_flags
 
+  def genPerspectiveTransformedObj(self, homography_mat, crop_box=None):
+    __doc__=''' '''
+    new_obj = DetectionAnnotation()
+    assert self.isAccessible()
+    if crop_box==None: 
+      im_rows, im_cols, _ = cv2.imread(self.im_path).shape
+      crop_box = np.array([[0, 0, im_cols, im_rows]], np.float32)
+    
 
-  def hasCrossBorderBox(self):
-    raise NotImplementedError()
 
   def paintBBox(self):
     assert self.is_healthy
