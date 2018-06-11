@@ -57,7 +57,20 @@ def test_load_objs():
 def test_perspective_transform():
   v = VocXmlDetectAnnotation('data/voc-xml/000004.xml', 'data/voc-xml/')
 
+def test_paint_objs():
+  import cv2
+  v = VocXmlDetectAnnotation('data/voc-xml/000004.xml', 'data/voc-xml/')
+  im = v.paintBoundingBox()
+  cv2.imshow('display', im)
+  cv2.waitKey()
+
+def test_flip_anno():
+  v = VocXmlDetectAnnotation('data/voc-xml/000004.xml', 'data/voc-xml/')
+  v.genRotatedAnnotation()
+
 if __name__=='__main__':
   # test_voc_init()
   # test_voc_load()
-  test_load_objs()
+  # test_load_objs()
+  # test_paint_objs()
+  test_flip_anno()

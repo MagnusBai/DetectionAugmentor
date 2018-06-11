@@ -8,10 +8,14 @@ class DetectionAnnotation(object):
     self.boundingboxes = np.zeros((0, 4), np.int32) 
     self.scores = np.zeros((0, 1), np.float32) 
     self.classnames = np.zeros((0, 1), np.dtype('S3'))
-    self.im_path = ''
+    self.im_mat = None
+    self.im_path = None
 
   def isAccessible(self): 
-    return os.path.isfile(self.im_path) 
+    if self.im_mat or os.path.isfile(self.im_path):
+      return True
+    else:
+      return False
 
   def findBorderAndUnseenBox(self):
 
@@ -31,7 +35,8 @@ class DetectionAnnotation(object):
     border_box_flags = np.array([False for i in range(self.boundingboxes.shape[0])])
     unseen_box_flags = np.array([False for i in range(self.boundingboxes.shape[0])])
 
-    im_rows, im_cols, _ = cv2.imread(self.im_path).shape
+    im_rows, im_cols, _ = self.im_mat.shape if self.im_mat\
+                            else cv2.imread(self.im_path).shape
     im_box = np.array([[0, 0, im_cols, im_rows]], np.float32)
     for i in range(self.boundingboxes.shape[0]):
       obj_box = self.boundingboxes[i, :]
@@ -52,14 +57,77 @@ class DetectionAnnotation(object):
     new_obj = DetectionAnnotation()
     assert self.isAccessible()
     if crop_box==None: 
-      im_rows, im_cols, _ = cv2.imread(self.im_path).shape
+      im_rows, im_cols, _ = self.im_mat.shape if self.im_mat\
+                              else cv2.imread(self.im_path).shape
       crop_box = np.array([[0, 0, im_cols, im_rows]], np.float32)
+
+
+
+  def genRotatedAnnotation(self, rotate_clockwise=True):
+    assert self.isAccessible()
+    im = self.im_mat if self.im_mat else cv2.imread(self.im_path)
+    im_rows, im_cols, _ = im.shape
+
+    corner_pts = np.array([[0, 0], [0, im_rows], [im_cols, 0], [im_cols, im_rows]], dtype=np.float32)
+    homo_corner_pts = np.hstack((corner_pts, np.ones((4, 1), dtype=np.float32)))
+    print homo_corner_pts
+    homo_mat = None
+    if rotate_clockwise:
+      homo_mat = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]], dtype=np.float32)
+    else:
+      homo_mat = np.array([[0, 1, 0], [-1, 0, 0], [0, 0, 1]], dtype=np.float32)
+    homo_transformed_pts = np.transpose( np.dot(homo_mat, np.transpose(homo_corner_pts)) )
+    print homo_transformed_pts
+    xmin, xmax = np.min(homo_transformed_pts[:, 0]), np.max(homo_transformed_pts[:, 0])
+    ymin, ymax = np.min(homo_transformed_pts[:, 1]), np.max(homo_transformed_pts[:, 1])
+    print xmin, xmax, ymin, ymax
+    x_bias, y_bias = -xmin, -ymin
+    cropped_cols, cropped_rows = xmax-xmin, ymax-ymin
+
+    trimmed_homo_mat = homo_mat + np.array([[0, 0, x_bias], [0, 0, y_bias], [0, 0, 0]], np.float32)
+    print trimmed_homo_mat
+    flipped_im = cv2.warpPerspective(im, trimmed_homo_mat, (cropped_cols, cropped_rows))
+
+    print '#'*10
+    print self.boundingboxes
+
+    n_boxes = self.boundingboxes.shape[0]
+    old_bbox_pts = np.asarray(self.boundingboxes.reshape((n_boxes*2, 2)), dtype=np.float32)
+    old_bbox_pts_homo = np.hstack((old_bbox_pts, np.ones((n_boxes*2, 1), dtype=np.float32)))
+    new_bbox_pts_homo = np.transpose( np.dot(trimmed_homo_mat, np.transpose(old_bbox_pts_homo)) )
+    new_bbox_pts = new_bbox_pts_homo[..., 0:2]
+    print old_bbox_pts_homo
+    print new_bbox_pts_homo
+    print new_bbox_pts
     
+    cv2.imshow('im', im)
+    cv2.imshow('flip', flipped_im)
+    cv2.waitKey()
 
 
-  def paintBBox(self):
-    assert self.is_healthy
-    im = cv2.imread(self.impath)
+  def paintBoundingBox(self):
+    assert self.isAccessible()
+    im = self.im_mat if self.im_mat else cv2.imread(self.im_path)
+    im_rows, im_cols, _ = im.shape
+    canvas_rows, canvas_cols = im_rows, im_cols
+    x_bias, y_bias = 0, 0
+    if self.boundingboxes.shape[0]>0:
+      xmin = np.min(self.boundingboxes[:, 0])
+      xmax = np.max(self.boundingboxes[:, 2])
+      ymin = np.min(self.boundingboxes[:, 1])
+      ymax = np.max(self.boundingboxes[:, 3])
+      if xmin<0: x_bias=xmin
+      if ymin<0: y_bias=ymin
+      if xmax>im_cols: 
+        canvas_cols = xmax - xmin
+      if ymax>im_rows:
+        canvas_rows = ymax - ymin
+    canvas = np.zeros((canvas_rows, canvas_cols, 3), dtype=im.dtype)
+    canvas[-y_bias: -y_bias+im_rows, -x_bias: -x_bias+im_cols, :] = im
+    for i in range(self.boundingboxes.shape[0]):
+      x1, y1, x2, y2 = self.boundingboxes[i]
+      canvas = cv2.rectangle(canvas, (x1, y1), (x2, y2), (0, 255, 255), 2)
+    return canvas
 
   @staticmethod
   def getBoxArea(box):
