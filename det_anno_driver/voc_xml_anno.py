@@ -2,7 +2,7 @@ import numpy as np
 from det_anno_base import DetectionAnnotation
 import xml.etree.ElementTree as ET
 import os
-
+from lxml.etree import Element, SubElement, tostring
 
 class VocXmlDetectAnnotation(DetectionAnnotation):
   def __init__(self, xml_path, im_folder):
@@ -36,8 +36,15 @@ class VocXmlDetectAnnotation(DetectionAnnotation):
 
     print self.classnames
 
-  def dump(self):
-    raise NotImplementedError()
+  def dump(self, xml_path, im_path):
+    # raise NotImplementedError()
+    assert self.isAccessible()
+    im_folder, im_filename = os.path.split(im_path)
+    node_root = Element('annotation')
+    node_folder = SubElement(node_root, 'folder')
+    node_folder.text = '{}'.format(im_folder)
+    node_filename = SubElement(node_root, 'filename')
+    node_filename.text = '{}'.format(im_path)
 
 
 def test_voc_init():
@@ -66,11 +73,17 @@ def test_paint_objs():
 
 def test_flip_anno():
   v = VocXmlDetectAnnotation('data/voc-xml/000004.xml', 'data/voc-xml/')
-  v.genRotatedAnnotation()
+  v.genRotatedAnnotation(True)
+
+def test_xml_dump():
+  v = VocXmlDetectAnnotation('data/voc-xml/000004.xml', 'data/voc-xml/')
+  v2 = v.genRotatedAnnotation(True)
+  # v2.dump('out/im.xml', 'out/im.jpg')  # TODO: how to get a derived class (VocXmlDetectAnnotation) object, from a based class (DetectionAnnotation) object
 
 if __name__=='__main__':
   # test_voc_init()
   # test_voc_load()
   # test_load_objs()
   # test_paint_objs()
-  test_flip_anno()
+  # test_flip_anno()
+  test_xml_dump()

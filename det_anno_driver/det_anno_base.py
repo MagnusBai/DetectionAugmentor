@@ -11,8 +11,17 @@ class DetectionAnnotation(object):
     self.im_mat = None
     self.im_path = None
 
+  def set(self, boundingboxes, scores, classnames, im_mat=None, im_path=None):
+    assert (im_mat is None and os.path.isfile(im_path)) or \
+           (im_path is None and not im_mat is None)
+    self.boundingboxes = boundingboxes
+    self.scores = scores
+    self.classnames = classnames
+    self.im_mat = im_mat
+    self.im_path = im_path
+
   def isAccessible(self): 
-    if self.im_mat or os.path.isfile(self.im_path):
+    if (self.im_mat is not None) or os.path.isfile(self.im_path):
       return True
     else:
       return False
@@ -64,50 +73,49 @@ class DetectionAnnotation(object):
 
 
   def genRotatedAnnotation(self, rotate_clockwise=True):
+    PLOT_RESULT = True
     assert self.isAccessible()
     im = self.im_mat if self.im_mat else cv2.imread(self.im_path)
     im_rows, im_cols, _ = im.shape
 
     corner_pts = np.array([[0, 0], [0, im_rows], [im_cols, 0], [im_cols, im_rows]], dtype=np.float32)
     homo_corner_pts = np.hstack((corner_pts, np.ones((4, 1), dtype=np.float32)))
-    print homo_corner_pts
     homo_mat = None
     if rotate_clockwise:
       homo_mat = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]], dtype=np.float32)
     else:
       homo_mat = np.array([[0, 1, 0], [-1, 0, 0], [0, 0, 1]], dtype=np.float32)
     homo_transformed_pts = np.transpose( np.dot(homo_mat, np.transpose(homo_corner_pts)) )
-    print homo_transformed_pts
     xmin, xmax = np.min(homo_transformed_pts[:, 0]), np.max(homo_transformed_pts[:, 0])
     ymin, ymax = np.min(homo_transformed_pts[:, 1]), np.max(homo_transformed_pts[:, 1])
-    print xmin, xmax, ymin, ymax
     x_bias, y_bias = -xmin, -ymin
     cropped_cols, cropped_rows = xmax-xmin, ymax-ymin
 
     trimmed_homo_mat = homo_mat + np.array([[0, 0, x_bias], [0, 0, y_bias], [0, 0, 0]], np.float32)
-    print trimmed_homo_mat
     flipped_im = cv2.warpPerspective(im, trimmed_homo_mat, (cropped_cols, cropped_rows))
-
-    print '#'*10
-    print self.boundingboxes
 
     n_boxes = self.boundingboxes.shape[0]
     old_bbox_pts = np.asarray(self.boundingboxes.reshape((n_boxes*2, 2)), dtype=np.float32)
     old_bbox_pts_homo = np.hstack((old_bbox_pts, np.ones((n_boxes*2, 1), dtype=np.float32)))
     new_bbox_pts_homo = np.transpose( np.dot(trimmed_homo_mat, np.transpose(old_bbox_pts_homo)) )
     new_bbox_pts = new_bbox_pts_homo[..., 0:2]
-    print old_bbox_pts_homo
-    print new_bbox_pts_homo
-    print new_bbox_pts
+    new_boundingboxes = np.array( new_bbox_pts.reshape((n_boxes, 4)), dtype=np.int32 )
+
+    new_anno_obj = DetectionAnnotation()
+    new_anno_obj.set(new_boundingboxes, self.scores, self.classnames, flipped_im)
+    new_canvas = new_anno_obj.paintBoundingBox()
     
-    cv2.imshow('im', im)
-    cv2.imshow('flip', flipped_im)
-    cv2.waitKey()
+    if PLOT_RESULT:
+      cv2.imshow('im', im)
+      cv2.imshow('flip', flipped_im)
+      cv2.imshow('canvas', new_canvas)
+      cv2.waitKey()
+    return new_anno_obj
 
 
   def paintBoundingBox(self):
     assert self.isAccessible()
-    im = self.im_mat if self.im_mat else cv2.imread(self.im_path)
+    im = self.im_mat if (not self.im_mat is None) else cv2.imread(self.im_path)
     im_rows, im_cols, _ = im.shape
     canvas_rows, canvas_cols = im_rows, im_cols
     x_bias, y_bias = 0, 0
