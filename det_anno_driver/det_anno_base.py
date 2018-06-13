@@ -1,7 +1,7 @@
 import os 
 import cv2 
 import numpy as np
-
+from copy import deepcopy
 
 class DetectionAnnotation(object): 
   def __init__(self): 
@@ -70,6 +70,26 @@ class DetectionAnnotation(object):
                               else cv2.imread(self.im_path).shape
       crop_box = np.array([[0, 0, im_cols, im_rows]], np.float32)
 
+  def genCropResult(self):
+    assert not self.im_mat is None
+    im = self.im_mat
+    im_rows, im_cols, _ = im.shape
+    assert im_rows>im_cols
+    new_im_rows, new_im_cols = im_cols, im_rows
+
+    x_bias, y_bias = 0, -(im_rows-im_cols)/2
+    cx1, cy1, cx2, cy2 = [0, (im_rows-im_cols)/2, im_cols, im_rows-(im_rows-im_cols)/2]
+    cropped_im = im[cy1: cy2, cx1: cx2, :]
+    n_boxes = self.boundingboxes.shape[0]
+    cropped_bbox = self.boundingboxes + np.array([[x_bias, y_bias, x_bias, y_bias] for i in range(n_boxes)], dtype = self.boundingboxes.dtype)
+    scores = deepcopy(self.scores)
+    classnames = deepcopy(self.classnames)
+
+    cropped_anno = DetectionAnnotation()
+    cropped_anno.set(cropped_bbox, scores, classnames, im_mat=cropped_im)
+    canvas = cropped_anno.paintBoundingBox()
+    cv2.imshow('cropped_anno', canvas)
+    cv2.waitKey()
 
 
   def genRotatedAnnotation(self, rotate_clockwise=True):
@@ -134,7 +154,7 @@ class DetectionAnnotation(object):
     canvas[-y_bias: -y_bias+im_rows, -x_bias: -x_bias+im_cols, :] = im
     for i in range(self.boundingboxes.shape[0]):
       x1, y1, x2, y2 = self.boundingboxes[i]
-      canvas = cv2.rectangle(canvas, (x1, y1), (x2, y2), (0, 255, 255), 2)
+      cv2.rectangle(canvas, (x1, y1), (x2, y2), (0, 255, 255), 2)
     return canvas
 
   @staticmethod

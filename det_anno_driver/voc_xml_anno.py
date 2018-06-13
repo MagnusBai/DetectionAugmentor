@@ -75,6 +75,11 @@ def test_flip_anno():
   v = VocXmlDetectAnnotation('data/voc-xml/000004.xml', 'data/voc-xml/')
   v.genRotatedAnnotation(True)
 
+def test_flip_and_crop():
+  v = VocXmlDetectAnnotation('data/voc-xml/000004.xml', 'data/voc-xml/')
+  v1 = v.genRotatedAnnotation(True)
+  v1.genCropResult()
+
 def test_xml_dump():
   v = VocXmlDetectAnnotation('data/voc-xml/000004.xml', 'data/voc-xml/')
   v2 = v.genRotatedAnnotation(True)
@@ -85,5 +90,5 @@ if __name__=='__main__':
   # test_voc_load()
   # test_load_objs()
   # test_paint_objs()
-  # test_flip_anno()
-  test_xml_dump()
+  test_flip_and_crop()
+  # test_xml_dump()
