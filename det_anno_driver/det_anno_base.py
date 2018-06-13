@@ -76,9 +76,10 @@ class DetectionAnnotation(object):
     im_rows, im_cols, _ = im.shape
     assert im_rows>im_cols
     new_im_rows, new_im_cols = im_cols, im_rows
+    L_SIDE, S_SIDE = im_rows, im_cols
 
-    x_bias, y_bias = 0, -(im_rows-im_cols)/2
-    cx1, cy1, cx2, cy2 = [0, (im_rows-im_cols)/2, im_cols, im_rows-(im_rows-im_cols)/2]
+    x_bias, y_bias = 0, -(L_SIDE-S_SIDE)/2
+    cx1, cy1, cx2, cy2 = [0, (L_SIDE-S_SIDE)/2, S_SIDE, L_SIDE-(L_SIDE-S_SIDE)/2]
     cropped_im = im[cy1: cy2, cx1: cx2, :]
     n_boxes = self.boundingboxes.shape[0]
     cropped_bbox = self.boundingboxes + np.array([[x_bias, y_bias, x_bias, y_bias] for i in range(n_boxes)], dtype = self.boundingboxes.dtype)
@@ -89,7 +90,21 @@ class DetectionAnnotation(object):
     cropped_anno.set(cropped_bbox, scores, classnames, im_mat=cropped_im)
     canvas = cropped_anno.paintBoundingBox()
     cv2.imshow('cropped_anno', canvas)
+
+    # pasted_anno
+    pasted_im = np.zeros((S_SIDE, L_SIDE, 3), dtype=cropped_im.dtype)
+    pasted_im[:, (L_SIDE-S_SIDE)/2: L_SIDE-(L_SIDE-S_SIDE)/2, :]=cropped_anno.im_mat
+    cv2.imshow('pasted_im', pasted_im)
+    pasted_bbox = cropped_anno.boundingboxes + np.array([[(L_SIDE-S_SIDE)/2, 0, (L_SIDE-S_SIDE)/2, 0] for i in range(n_boxes)], dtype = cropped_anno.boundingboxes.dtype)
+    pasted_scores = deepcopy(cropped_anno.scores)
+    pasted_classnames = deepcopy(cropped_anno.classnames)
+
+    pasted_anno = DetectionAnnotation()
+    pasted_anno.set(pasted_bbox, pasted_scores, pasted_classnames, im_mat=pasted_im)
+    cv2.imshow('pasted_anno', pasted_anno.paintBoundingBox())
+
     cv2.waitKey()
+
 
 
   def genRotatedAnnotation(self, rotate_clockwise=True):
@@ -154,7 +169,7 @@ class DetectionAnnotation(object):
     canvas[-y_bias: -y_bias+im_rows, -x_bias: -x_bias+im_cols, :] = im
     for i in range(self.boundingboxes.shape[0]):
       x1, y1, x2, y2 = self.boundingboxes[i]
-      cv2.rectangle(canvas, (x1, y1), (x2, y2), (0, 255, 255), 2)
+      cv2.rectangle(canvas, (x1-x_bias, y1-y_bias), (x2-x_bias, y2-y_bias), (0, 255, 255), 2)
     return canvas
 
   @staticmethod
