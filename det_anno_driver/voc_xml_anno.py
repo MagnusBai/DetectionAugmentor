@@ -85,10 +85,18 @@ def test_xml_dump():
   v2 = v.genRotatedAnnotation(True)
   # v2.dump('out/im.xml', 'out/im.jpg')  # TODO: how to get a derived class (VocXmlDetectAnnotation) object, from a based class (DetectionAnnotation) object
 
+def test_remove_border_unseen():
+  v = VocXmlDetectAnnotation('data/voc-xml/000004.xml', 'data/voc-xml/')
+  v1 = v.genRotatedAnnotation(True)
+  v2 = v1.genCropResult()
+  v3 = v2.genNoBoarderAndUnseenAnnotation()
+
+
 if __name__=='__main__':
   # test_voc_init()
   # test_voc_load()
   # test_load_objs()
   # test_paint_objs()
-  test_flip_and_crop()
+  # test_flip_and_crop()
   # test_xml_dump()
+  test_remove_border_unseen()

@@ -3,7 +3,9 @@ import cv2
 import numpy as np
 from copy import deepcopy
 
-class DetectionAnnotation(object): 
+class DetectionAnnotation(object):
+  pasted_im = np.array((300, 300), dtype=np.uint8) 
+
   def __init__(self): 
     self.boundingboxes = np.zeros((0, 4), np.int32) 
     self.scores = np.zeros((0, 1), np.float32) 
@@ -14,6 +16,11 @@ class DetectionAnnotation(object):
   def set(self, boundingboxes, scores, classnames, im_mat=None, im_path=None):
     assert (im_mat is None and os.path.isfile(im_path)) or \
            (im_path is None and not im_mat is None)
+    for i in range(boundingboxes.shape[0]):
+      x1, y1, x2, y2 = boundingboxes[i]
+      xmin, xmax = min(x1, x2), max(x1, x2)
+      ymin, ymax = min(y1, y2), max(y1, y2)
+      boundingboxes[i, :] = np.array([xmin, ymin, xmax, ymax], dtype=boundingboxes.dtype)
     self.boundingboxes = boundingboxes
     self.scores = scores
     self.classnames = classnames
@@ -25,6 +32,31 @@ class DetectionAnnotation(object):
       return True
     else:
       return False
+
+  def genNoBoarderAndUnseenAnnotation(self):
+    assert self.isAccessible()
+    im = self.im_mat if not self.im_mat is None else cv2.imread(self.im_path)
+    im = deepcopy(im)
+    im_rows, im_cols, _ = im.shape
+    border_box_flags, unseen_box_flags = self.findBorderAndUnseenBox()
+    new_boundingboxes = np.zeros((0, 4), np.int32) 
+    new_scores = np.zeros((0, 1), np.float32) 
+    new_classnames = np.zeros((0, 1), np.dtype('S3'))
+
+    print border_box_flags, unseen_box_flags
+    for i in range(self.boundingboxes.shape[0]):
+      is_border_box = border_box_flags[i]
+      is_unseen_box = unseen_box_flags[i]
+      x1, y1, x2, y2 = self.boundingboxes[i]
+      # print x1, y1, x2, y2, is_border_box, is_unseen_box
+      if is_unseen_box:
+        pass
+      elif is_border_box:
+        x1new, y1new = max(0, x1), max(0, y1)
+        x2new, y2new = min(x2, im_cols-1), min(y2, im_rows-1)
+        im[y1new: y2new, x1new, x2new, :] = 255
+
+
 
   def findBorderAndUnseenBox(self):
 
@@ -43,16 +75,17 @@ class DetectionAnnotation(object):
     assert self.isAccessible()
     border_box_flags = np.array([False for i in range(self.boundingboxes.shape[0])])
     unseen_box_flags = np.array([False for i in range(self.boundingboxes.shape[0])])
-
-    im_rows, im_cols, _ = self.im_mat.shape if self.im_mat\
-                            else cv2.imread(self.im_path).shape
+    im = self.im_mat if not self.im_mat is None else cv2.imread(self.im_path)
+    im_rows, im_cols, _ = im.shape
     im_box = np.array([[0, 0, im_cols, im_rows]], np.float32)
     for i in range(self.boundingboxes.shape[0]):
       obj_box = self.boundingboxes[i, :]
       obj_box = np.expand_dims(obj_box, axis=0)
       obj_box_area = self.getBoxArea(obj_box)
-      print obj_box_area, obj_box
       obj_box_in_view_area = self.get2BoxIntersectionArea(obj_box, im_box)
+
+      # print obj_box, im_box, obj_box_in_view_area, obj_box_area
+
       if obj_box_in_view_area==0:
         unseen_box_flags[i] = True
       elif obj_box_in_view_area<obj_box_area:
@@ -105,6 +138,7 @@ class DetectionAnnotation(object):
 
     cv2.waitKey()
 
+    return pasted_anno
 
 
   def genRotatedAnnotation(self, rotate_clockwise=True):
@@ -177,6 +211,7 @@ class DetectionAnnotation(object):
     __doc__ = '''box1 box2 is numpy.ndarray() shaped as (1, 4) \n'''
     xmin, ymin, xmax, ymax = box[0, :]
     area = (ymax-ymin)*(xmax-xmin)
+    print box, area
     return area
 
   @staticmethod
