@@ -33,6 +33,32 @@ class DetectionAnnotation(object):
     else:
       return False
 
+  def genPerspectiveTransformedAnnotation(self, homo_mat):
+    assert self.isAccessible()
+    assert homo_mat.shape == (3, 3)
+    im = self.im_mat if self.im_mat else cv2.imread(self.im_path)
+    im_rows, im_cols, _ = im.shape
+
+    corner_pts = np.array([[0, 0], [0, im_rows], [im_cols, 0], [im_cols, im_rows]], dtype=np.float32)
+    homo_corner_pts = np.hstack((corner_pts, np.ones((4, 1), dtype=np.float32)))
+
+    homo_transformed_pts = np.transpose( np.dot(homo_mat, np.transpose(homo_corner_pts)) )
+    xmin, xmax = np.min(homo_transformed_pts[:, 0]), np.max(homo_transformed_pts[:, 0])
+    ymin, ymax = np.min(homo_transformed_pts[:, 1]), np.max(homo_transformed_pts[:, 1])
+
+    if xmax<=0 or ymax<=0: return None
+
+    flipped_im = cv2.warpPerspective(im, homo_mat, (xmax, ymax))
+
+    n_boxes = self.boundingboxes.shape[0]
+    old_bbox_pts = np.asarray(self.boundingboxes.reshape((n_boxes*2, 2)), dtype=np.float32)
+    old_bbox_pts_homo = np.hstack((old_bbox_pts, np.ones((n_boxes*2, 1), dtype=np.float32)))
+    new_bbox_pts_homo = np.transpose( np.dot(trimmed_homo_mat, np.transpose(old_bbox_pts_homo)) )
+    new_bbox_pts = new_bbox_pts_homo[..., 0:2]
+    new_boundingboxes = np.array( new_bbox_pts.reshape((n_boxes, 4)), dtype=np.int32 )
+    
+
+
   def genNoBoarderAndUnseenAnnotation(self):
     assert self.isAccessible()
     im = self.im_mat if not self.im_mat is None else cv2.imread(self.im_path)
@@ -56,7 +82,16 @@ class DetectionAnnotation(object):
         x2new, y2new = min(x2, im_cols-1), min(y2, im_rows-1)
         im[y1new: y2new, x1new, x2new, :] = 255
 
+  def hasBorderAndUnseenBox(self):
+    border_box_flags, unseen_box_flags = self.findBorderAndUnseenBox()
+    n_boxes = self.boundingboxes.shape[0]
+    for i in range(n_boxes):
+      if border_box_flags[i] or unseen_box_flags[i]:
+        return True
+    return False
 
+  def removeBorderAndUnseenBox(self):
+    raise NotImplementedError()
 
   def findBorderAndUnseenBox(self):
 
