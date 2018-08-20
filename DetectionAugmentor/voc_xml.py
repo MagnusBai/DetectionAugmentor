@@ -1,5 +1,5 @@
 import numpy as np
-from det_anno_base import DetectionAnnotation
+from base import DetectionAnnotation
 import xml.etree.ElementTree as ET
 import os
 from lxml.etree import Element, SubElement, tostring
@@ -33,8 +33,10 @@ class VocXmlDetectAnnotation(DetectionAnnotation):
         y2 = int(round(float(xmlbox.find('ymax').text)))
         self.boundingboxes = np.vstack((self.boundingboxes, np.array([x1, y1, x2, y2], dtype=np.int32)))
         self.scores = np.vstack((self.scores, np.array([1.], np.float32)))
+    # print self.classnames
 
-    print self.classnames
+  def dumps(self):
+    raise NotImplementedError()
 
   def dump(self, xml_path, im_path):
     # raise NotImplementedError()
@@ -47,56 +49,5 @@ class VocXmlDetectAnnotation(DetectionAnnotation):
     node_filename.text = '{}'.format(im_path)
 
 
-def test_voc_init():
-  v = VocXmlDetectAnnotation()
-  print v.impath
-
-def test_voc_load():
-  v = VocXmlDetectAnnotation()
-  v.load('data/voc-xml/000004.xml', 'data/voc-xml/000004.jpg')
-
-def test_load_objs():
-  v = VocXmlDetectAnnotation('data/voc-xml/000004.xml', 'data/voc-xml/')
-  # print v.im_path
-  border_flags, unseen_flags = v.findBorderAndUnseenBox()
-  print border_flags, unseen_flags
-
-def test_perspective_transform():
-  v = VocXmlDetectAnnotation('data/voc-xml/000004.xml', 'data/voc-xml/')
-
-def test_paint_objs():
-  import cv2
-  v = VocXmlDetectAnnotation('data/voc-xml/000004.xml', 'data/voc-xml/')
-  im = v.paintBoundingBox()
-  cv2.imshow('display', im)
-  cv2.waitKey()
-
-def test_flip_anno():
-  v = VocXmlDetectAnnotation('data/voc-xml/000004.xml', 'data/voc-xml/')
-  v.genRotatedAnnotation(True)
-
-def test_flip_and_crop():
-  v = VocXmlDetectAnnotation('data/voc-xml/000004.xml', 'data/voc-xml/')
-  v1 = v.genRotatedAnnotation(True)
-  v1.genCropResult()
-
-def test_xml_dump():
-  v = VocXmlDetectAnnotation('data/voc-xml/000004.xml', 'data/voc-xml/')
-  v2 = v.genRotatedAnnotation(True)
-  # v2.dump('out/im.xml', 'out/im.jpg')  # TODO: how to get a derived class (VocXmlDetectAnnotation) object, from a based class (DetectionAnnotation) object
-
-def test_remove_border_unseen():
-  v = VocXmlDetectAnnotation('data/voc-xml/000004.xml', 'data/voc-xml/')
-  v1 = v.genRotatedAnnotation(True)
-  v2 = v1.genCropResult()
-  v3 = v2.genNoBoarderAndUnseenAnnotation()
-
-
 if __name__=='__main__':
-  # test_voc_init()
-  # test_voc_load()
-  # test_load_objs()
-  # test_paint_objs()
-  # test_flip_and_crop()
-  # test_xml_dump()
-  test_remove_border_unseen()
+  pass

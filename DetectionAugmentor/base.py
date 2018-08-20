@@ -9,7 +9,7 @@ class DetectionAnnotation(object):
   def __init__(self): 
     self.boundingboxes = np.zeros((0, 4), np.int32) 
     self.scores = np.zeros((0, 1), np.float32) 
-    self.classnames = np.zeros((0, 1), np.dtype('S3'))
+    self.classnames = np.zeros((0, 1), str)
     self.im_mat = None
     self.im_path = None
 
@@ -156,7 +156,7 @@ class DetectionAnnotation(object):
 
     cropped_anno = DetectionAnnotation()
     cropped_anno.set(cropped_bbox, scores, classnames, im_mat=cropped_im)
-    canvas = cropped_anno.paintBoundingBox()
+    canvas = cropped_anno.genPaintedBoxImage()
     cv2.imshow('cropped_anno', canvas)
 
     # pasted_anno
@@ -169,7 +169,7 @@ class DetectionAnnotation(object):
 
     pasted_anno = DetectionAnnotation()
     pasted_anno.set(pasted_bbox, pasted_scores, pasted_classnames, im_mat=pasted_im)
-    cv2.imshow('pasted_anno', pasted_anno.paintBoundingBox())
+    cv2.imshow('pasted_anno', pasted_anno.genPaintedBoxImage())
 
     cv2.waitKey()
 
@@ -207,7 +207,7 @@ class DetectionAnnotation(object):
 
     new_anno_obj = DetectionAnnotation()
     new_anno_obj.set(new_boundingboxes, self.scores, self.classnames, flipped_im)
-    new_canvas = new_anno_obj.paintBoundingBox()
+    new_canvas = new_anno_obj.genPaintedBoxImage()
     
     if PLOT_RESULT:
       cv2.imshow('im', im)
@@ -217,7 +217,7 @@ class DetectionAnnotation(object):
     return new_anno_obj
 
 
-  def paintBoundingBox(self):
+  def genPaintedBoxImage(self):
     assert self.isAccessible()
     im = self.im_mat if (not self.im_mat is None) else cv2.imread(self.im_path)
     im_rows, im_cols, _ = im.shape
@@ -273,24 +273,8 @@ class DetectionAnnotation(object):
     area1, area2 = DetectionAnnotation.getBoxArea(box1), DetectionAnnotation.getBoxArea(box2)
     return float(inter_area)/(area1+area2-inter_area)
 
-
-def test_det_anno_base_init():
-  d = DetectionAnnotation()
-  print d.impath
-  print d.boundingboxes
-
-
-def test_get_iou():
-  box1 = np.array([[30, 31, 60, 100]], dtype=np.int32)
-  box2 = np.array([[40, 40, 50, 50]], dtype=np.int32)
-  box3 = np.array([[30, 40, 45, 60]], dtype=np.int32)
-  print "box1 area:", DetectionAnnotation.getBoxArea(box1)
-  print "box1 & box2:", DetectionAnnotation.get2BoxIntersectionArea(box1, box2)
-  print "box2 & box3:", DetectionAnnotation.get2BoxIntersectionArea(box2, box3)
-  print "IoU box1&box2:", DetectionAnnotation.get2BoxIoU(box1, box2)
-  print "IoU box2&box3:", DetectionAnnotation.get2BoxIoU(box2, box3)
-
+  
 
 if __name__=='__main__':
   # test_det_anno_base_init()
-  test_get_iou()
+  pass
